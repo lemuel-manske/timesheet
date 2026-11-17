@@ -1,0 +1,45 @@
+{
+  "employee": "Colaborador",
+  "id": "Matrícula",
+  "schedule": "Horário de trabalho",
+  "date": "Data",
+  "day": "Dia",
+  "status": "Situação",
+  "punch_headers": [
+    "Entrada",
+    "Saída almoço",
+    "Retorno almoço",
+    "Entrada 2",
+    "Saída 2",
+    "Entrada HE",
+    "Saída HE"
+  ],
+  "worked": "Total trabalhado",
+  "regular": "Horas normais",
+  "overtime_headers": ["HE 50%", "HE 75%", "HE 100%", "HE 125%"],
+  "review": "Conferência",
+  "issues": "Observações",
+  "review_required": "REVISAR MANUALMENTE",
+  "total": "TOTAL",
+  "more_than_seven_punches": "Mais de 7 marcações; consultar registros originais",
+  "automatic_lunch": "Intervalo automático: {minutes} min",
+  "weekdays": ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"],
+  "status_labels": {
+    "worked": "Trabalhado",
+    "absent": "Falta",
+    "compensated": "Compensado",
+    "leave": "Licença",
+    "weekly_rest": "RSR",
+    "holiday": "Feriado"
+  },
+  "issue_labels": {
+    "UNPAIRED_PUNCH": "Marcação sem par",
+    "NON_CHRONOLOGICAL_PUNCHES": "Marcações fora de ordem",
+    "NO_PUNCHES_OR_STATUS_PROVIDED": "Sem marcações de ponto",
+    "NO_PUNCHES": "Sem marcações de ponto",
+    "MISSING_WEEKDAY_LUNCH_PUNCHES": "Marcação de almoço ausente",
+    "MISSING_LUNCH": "Marcação de almoço ausente",
+    "PUNCHES_EXIST_ON_A_NON_WORKING_STATUS": "Marcações em dia não trabalhado",
+    "PUNCHES_ON_NON_WORKING_DAY": "Marcações em dia não trabalhado"
+  }
+}
