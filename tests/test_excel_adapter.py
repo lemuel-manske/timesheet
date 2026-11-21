@@ -56,6 +56,16 @@ def test_exported_totals_use_formulas_for_all_duration_columns(tmp_path):
     assert sheet["O7"].value == "=SUM(O5:O5)"
     assert sheet["P7"].value == "=SUM(P5:P5)"
     assert sheet["Q7"].value == "=SUM(Q5:Q5)"
+    assert sheet["M5"].data_type == "f"
+    assert sheet["N5"].data_type == "f"
+    assert sheet["O5"].data_type == "f"
+    assert sheet["P5"].data_type == "f"
+    assert sheet["Q5"].data_type == "f"
+    assert sheet["T5"].value == 1
+    assert sheet.column_dimensions["T"].hidden
+    assert sheet.column_dimensions["BH"].hidden
+    assert workbook["__feriados"].sheet_state == "hidden"
+
 
 
 def test_exported_day_presentation_uses_the_named_table_columns(tmp_path):
@@ -131,6 +141,11 @@ def test_exported_worked_time_is_formula_based_and_includes_automatic_lunch(tmp_
     assert sheet["F5"].fill.fgColor.rgb.endswith(LIGHT_RED)
     assert not sheet["D5"].fill.fgColor.rgb.endswith(LIGHT_RED)
     assert not sheet["G5"].fill.fgColor.rgb.endswith(LIGHT_RED)
+    assert sheet["T5"].value == 0
+    assert sheet["M5"].data_type == "f"
+    assert sheet["N5"].data_type == "f"
+    assert sheet["U5"].value.startswith("=IF(")
+
     assert sheet["L5"].value == (
         "=IF(AND("
         "IF(COUNT(D5:E5)=2,D5<=E5,TRUE),"
