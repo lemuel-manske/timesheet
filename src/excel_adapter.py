@@ -132,10 +132,6 @@ DAY_FILL_RULES = (
 )
 
 
-def duration_value(minutes: int) -> float:
-    return minutes / (24 * 60)
-
-
 def unique_sheet_name(name: str, used: set[str]) -> str:
     invalid = "[]:*?/\\"
 
@@ -340,13 +336,10 @@ def calculation_helper_formula(
         f"IF({is_regular_day},MAX(0,{night_work}-{scheduled_night}),{night_work})"
     )
 
-    pair_index = next(
-        index for index, pair in enumerate(PUNCH_PAIRS)
-        if pair[0] == f"punch_{int(start_column[-1])}"
-    )
+    pair_index = (excel_column_number(start_column) - excel_column_number("D")) // 2
     previous_worked = "+".join(
         formula_pair_duration(
-            f"{PUNCH_PAIRS[index][0] and excel_column_name(excel_column_number(start_column) - 2 * (pair_index - index))}{row}",
+            f"{excel_column_name(excel_column_number(start_column) - 2 * (pair_index - index))}{row}",
             f"{excel_column_name(excel_column_number(start_column) - 2 * (pair_index - index) + 1)}{row}",
         )
         for index in range(pair_index)
@@ -512,7 +505,6 @@ def write_employee(
         displayed = displayed_punches(day)[:PUNCH_AMOUNT]
         displayed.extend([None] * (PUNCH_AMOUNT - len(displayed)))  # pyright: ignore
 
-        totals = day.overtime_minutes
         issues = [labels["issue_labels"].get(issue.value, issue.value) for issue in day.issues]
 
         if day.automatic_break is not None:
@@ -633,9 +625,8 @@ def export_timesheets(
 
         sheet.title = unique_sheet_name(ts.who, used)
 
-        write_employee(
-            sheet, ts, result, holiday_dates, labels, "'__feriados'!$A$1:$A$1"
-        )
+        holidays_range = "'__feriados'!$A$1:$A$" + str(max(1, len(holiday_dates)))
+        write_employee(sheet, ts, result, holiday_dates, labels, holidays_range)
 
     holiday_sheet = workbook.create_sheet("__feriados")
     for index, holiday in enumerate(sorted(holiday_dates), start=1):
