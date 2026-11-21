@@ -97,6 +97,41 @@ def test_exported_day_presentation_uses_the_named_table_columns(tmp_path):
     assert sheet.auto_filter.ref == "A4:S5"
 
 
+def test_exported_worked_time_is_formula_based_and_includes_automatic_lunch(tmp_path):
+    timesheet = Timesheet(
+        id_="123",
+        who="Test Employee",
+        work_schedule=WorkSchedule(
+            morning=ShiftSchedule(time(8), time(12)),
+            afternoon=ShiftSchedule(time(13, 30), time(17, 30)),
+        ),
+        entries=[
+            TimesheetEntry(
+                date=date(2026, 11, 16),
+                punches=(time(8), time(17, 30)),
+            )
+        ],
+    )
+    result = calculate_timesheet(timesheet)
+
+    output = export_timesheets([(timesheet, result)], output=tmp_path / "timesheet.xlsx")
+
+    workbook = load_workbook(output, data_only=False)
+    sheet = workbook.active
+    assert sheet is not None
+
+    assert [sheet[f"{column}5"].value.time() for column in "DEFG"] == [
+        time(8),
+        time(12),
+        time(13, 30),
+        time(17, 30),
+    ]
+    assert sheet["L5"].value == (
+        "=IF(COUNT(D5:E5)=2,E5-D5,0)+IF(COUNT(F5:G5)=2,G5-F5,0)"
+        "+IF(COUNT(H5:I5)=2,I5-H5,0)+IF(COUNT(J5:K5)=2,K5-J5,0)"
+    )
+
+
 def test_day_presentation_exposes_the_applicable_rules_in_order():
     day = DailyResult(
         date=date(2026, 11, 22),

@@ -1,6 +1,15 @@
 import pytest
 
-from spreadsheet import Cell, Column, ColumnRange, FillRule, Sum, Table, Totals
+from spreadsheet import (
+    Cell,
+    Column,
+    ColumnRange,
+    FillRule,
+    Sum,
+    SumPairedDurations,
+    Table,
+    Totals,
+)
 
 
 def make_daily_table(*, anchor: Cell | None = None, row_count: int = 3) -> Table:
@@ -54,6 +63,20 @@ def test_fill_rule_has_a_name_target_and_named_predicate():
 
     assert rule.matches(True)
     assert not rule.matches(False)
+
+
+def test_paired_duration_formula_sums_completed_punch_pairs():
+    formula = SumPairedDurations("punch_1", "punch_4")
+    table = Table(
+        name="punches",
+        anchor=Cell("A", 4),
+        row_count=1,
+        columns=tuple(Column(f"punch_{number}") for number in range(1, 5)),
+    )
+
+    assert formula.to_excel(table, row=5) == (
+        "=IF(COUNT(A5:B5)=2,B5-A5,0)+IF(COUNT(C5:D5)=2,D5-C5,0)"
+    )
 
 
 def test_totals_declare_formulas_by_column_name():

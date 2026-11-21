@@ -46,13 +46,16 @@ class Table:
     def first_data_row(self) -> int:
         return self.anchor.row + 1
 
-    def excel_column(self, column_name: str) -> str:
+    def column_index(self, column_name: str) -> int:
         for index, column in enumerate(self.columns):
             if column.name == column_name:
-                anchor_column = excel_column_number(self.anchor.column)
-                return excel_column_name(anchor_column + index)
+                return index
 
         raise ValueError(f"Table {self.name!r} has unknown column {column_name!r}")
+
+    def excel_column(self, column_name: str) -> str:
+        anchor_column = excel_column_number(self.anchor.column)
+        return excel_column_name(anchor_column + self.column_index(column_name))
 
 
 @dataclass(frozen=True)
@@ -68,6 +71,28 @@ class Sum:
         first_row = table.first_data_row
         last_row = first_row + table.row_count - 1
         return f"=SUM({column}{first_row}:{column}{last_row})"
+
+
+@dataclass(frozen=True)
+class SumPairedDurations:
+    first_column: str
+    last_column: str
+
+    def to_excel(self, table: Table, row: int) -> str:
+        first_index = table.column_index(self.first_column)
+        last_index = table.column_index(self.last_column)
+        column_count = last_index - first_index + 1
+
+        if column_count < 2 or column_count % 2:
+            raise ValueError("Paired durations require an even number of columns")
+
+        expressions = []
+        for index in range(first_index, last_index + 1, 2):
+            start = excel_column_name(excel_column_number(table.anchor.column) + index)
+            end = excel_column_name(excel_column_number(table.anchor.column) + index + 1)
+            expressions.append(f"IF(COUNT({start}{row}:{end}{row})=2,{end}{row}-{start}{row},0)")
+
+        return f"={'+'.join(expressions)}"
 
 
 @dataclass(frozen=True)

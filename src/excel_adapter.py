@@ -19,6 +19,7 @@ from spreadsheet import (
     ColumnRange,
     FillRule,
     Sum,
+    SumPairedDurations,
     Table,
     Totals,
     excel_column_number,
@@ -57,6 +58,7 @@ DURATION_COLUMNS = (
 )
 
 TOTALS = Totals({column: Sum(column) for column in DURATION_COLUMNS})
+WORKED_TIME = SumPairedDurations("punch_1", f"punch_{PUNCH_AMOUNT}")
 
 NAVY = "183153"
 WHITE = "FFFFFF"
@@ -222,6 +224,18 @@ def apply_fill_rules(
         fill_range(sheet, rule.target.to_excel(table, row), rule.color)
 
 
+def displayed_punches(day: DailyResult) -> list[datetime]:
+    if not day.automatic_break:
+        return day.punches
+
+    return [
+        day.punches[0],
+        day.automatic_break.start,
+        day.automatic_break.end,
+        *day.punches[1:],
+    ]
+
+
 def write_employee(
     sheet: Worksheet,
     ts: Timesheet,
@@ -274,7 +288,7 @@ def write_employee(
     write_header(sheet, table.anchor.row, headings)
 
     for index, day in enumerate(result.days, start=first):
-        displayed = list(day.punches[:PUNCH_AMOUNT])
+        displayed = displayed_punches(day)[:PUNCH_AMOUNT]
         displayed.extend([None] * (PUNCH_AMOUNT - len(displayed)))  # pyright: ignore
 
         totals = day.overtime_minutes
@@ -290,7 +304,7 @@ def write_employee(
             labels["weekdays"][day.week_day],
             labels["status_labels"].get(day.status.value, day.status.value),
             *displayed,
-            duration_value(day.worked_minutes),
+            None,
             duration_value(day.regular_minutes),
             *(duration_value(totals[rate]) for rate in RATES),
             labels["review_required"] if presentation.requires_review else "",
@@ -299,6 +313,9 @@ def write_employee(
 
         for column, value in enumerate(values, start=1):
             sheet.cell(row=index, column=column, value=value)
+
+        worked_column = table.excel_column("worked")
+        sheet[f"{worked_column}{index}"] = WORKED_TIME.to_excel(table, index)
 
         sheet[f"{table.excel_column('date')}{index}"].number_format = DATE_FORMAT
 
@@ -374,6 +391,9 @@ def export_timesheets(
     holiday_dates = set(holidays)
 
     workbook = Workbook()
+    workbook.calculation.fullCalcOnLoad = True
+    workbook.calculation.forceFullCalc = True
+    workbook.calculation.calcMode = "auto"
     sheet = workbook.active
     assert sheet is not None
 
