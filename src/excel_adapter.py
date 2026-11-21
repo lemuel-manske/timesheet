@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from datetime import date, datetime
 from pathlib import Path
-from typing import Iterable
+from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -11,7 +12,6 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from core import OvertimeRate, TimesheetResult
 from extraction import DayStatus, Timesheet
-
 
 TimesheetReport = tuple[Timesheet, TimesheetResult]
 
@@ -22,7 +22,9 @@ RATES = tuple(OvertimeRate)
 
 DURATION_FORMAT = "[h]:mm"
 DATE_FORMAT = "dd/mm/yyyy"
-PUNCH_FORMAT = "dd/mm hh:mm"
+PUNCH_FORMAT = "hh:mm"
+
+PUNCH_AMOUNT = 8
 
 NAVY = "183153"
 WHITE = "FFFFFF"
@@ -40,7 +42,7 @@ def duration_value(minutes: int) -> float:
 
 
 def unique_sheet_name(name: str, used: set[str]) -> str:
-    invalid = '[]:*?/\\'
+    invalid = "[]:*?/\\"
 
     clean = "".join("_" if char in invalid else char for char in name).strip(" '")
 
@@ -50,7 +52,7 @@ def unique_sheet_name(name: str, used: set[str]) -> str:
 
     while candidate.casefold() in used:
         ending = f" ({suffix})"
-        candidate = base[:31 - len(ending)] + ending
+        candidate = base[: 31 - len(ending)] + ending
         suffix += 1
 
     used.add(candidate.casefold())
@@ -58,7 +60,7 @@ def unique_sheet_name(name: str, used: set[str]) -> str:
     return candidate
 
 
-def load_labels() -> dict:
+def load_labels() -> dict[str, Any]:
     with LABELS_PATH.open("r", encoding="utf-8") as file:
         return json.load(file)
 
@@ -92,12 +94,12 @@ def write_employee(
     ts: Timesheet,
     result: TimesheetResult,
     holidays: set[date],
-    labels: dict,
+    labels: dict[str, Any],
 ) -> None:
     sheet["A1"] = labels["employee"]
     sheet["B1"] = ts.who
     sheet["D1"] = labels["id"]
-    sheet["E1"] = str(ts._id)
+    sheet["E1"] = str(ts.id_)
 
     sheet["A2"] = labels["schedule"]
 
@@ -116,14 +118,18 @@ def write_employee(
     sheet.row_dimensions[2].height = 23
 
     headings = [
-        labels["date"], labels["day"], labels["status"],
+        labels["date"],
+        labels["day"],
+        labels["status"],
         *labels["punch_headers"],
-        labels["worked"], labels["regular"],
+        labels["worked"],
+        labels["regular"],
         *labels["overtime_headers"],
-        labels["review"], labels["issues"],
+        labels["review"],
+        labels["issues"],
     ]
 
-    if len(labels["punch_headers"]) != 7 or len(labels["overtime_headers"]) != 4:
+    if len(labels["punch_headers"]) != PUNCH_AMOUNT or len(labels["overtime_headers"]) != 4:
         raise ValueError("Expected seven punch headers and four overtime headers")
 
     write_header(sheet, 4, headings)
@@ -131,21 +137,16 @@ def write_employee(
     first = 5
 
     for index, day in enumerate(result.days, start=first):
-        displayed = list(day.punches[:7])
-        displayed.extend([None] * (7 - len(displayed))) # pyright: ignore
+        displayed = list(day.punches[:PUNCH_AMOUNT])
+        displayed.extend([None] * (PUNCH_AMOUNT - len(displayed)))  # pyright: ignore
 
         totals = day.overtime_minutes
         issues = [labels["issue_labels"].get(issue.value, issue.value) for issue in day.issues]
 
-        if len(day.punches) > 7:
-            issues.append(labels["more_than_seven_punches"])
-
         if day.automatic_break:
-            issues.append(
-                labels["automatic_lunch"].format(minutes=day.automatic_break.minutes)
-            )
+            issues.append(labels["automatic_lunch"].format(minutes=day.automatic_break.minutes))
 
-        requires_review = day.requires_review or len(day.punches) > 7
+        requires_review = day.requires_review or len(day.punches) > PUNCH_AMOUNT
 
         values = [
             datetime.combine(day.date, datetime.min.time()),

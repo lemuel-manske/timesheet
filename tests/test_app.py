@@ -1,6 +1,6 @@
-from datetime import date, time, datetime
+from datetime import date, datetime, time
 
-from core import calculate_timesheet, OvertimeRate, Issue
+from core import Issue, OvertimeRate, calculate_timesheet
 from extraction import (
     DayStatus,
     ShiftSchedule,
@@ -17,7 +17,7 @@ def make_timesheet(day: date, *punches: str) -> Timesheet:
     )
 
     return Timesheet(
-        _id="123",
+        id_="123",
         who="Test Employee",
         work_schedule=schedule,
         entries=[
@@ -32,7 +32,10 @@ def make_timesheet(day: date, *punches: str) -> Timesheet:
 def test_regular_workday():
     ts = make_timesheet(
         date(2026, 11, 16),
-        "08:00", "12:00", "13:30", "17:30",
+        "08:00",
+        "12:00",
+        "13:30",
+        "17:30",
     )
 
     result = calculate_timesheet(ts)
@@ -59,6 +62,7 @@ def test_sunday_with_automatic_lunch():
 
     assert result.worked_minutes == 510
     assert result.days[0].automatic_break is not None
+    assert result.days[0].automatic_break.minutes == 90
     assert result.overtime_minutes[OvertimeRate.ONE_HUNDRED] == 510
 
 
@@ -77,7 +81,10 @@ def test_automatic_weekday_lunch():
 def test_holiday_overtime():
     ts = make_timesheet(
         date(2026, 11, 16),
-        "08:00", "12:00", "13:30", "17:30",
+        "08:00",
+        "12:00",
+        "13:30",
+        "17:30",
     )
 
     result = calculate_timesheet(
@@ -91,7 +98,10 @@ def test_holiday_overtime():
 def test_saturday_overtime():
     ts = make_timesheet(
         date(2026, 11, 14),
-        "08:00", "12:00", "13:30", "17:30",
+        "08:00",
+        "12:00",
+        "13:30",
+        "17:30",
     )
 
     result = calculate_timesheet(ts)
@@ -113,7 +123,11 @@ def test_sunday_night_overtime():
 def test_overnight_punch_recovery():
     ts = make_timesheet(
         date(2026, 11, 16),
-        "06:40", "12:10", "12:37", "15:56", "16:26",
+        "06:40",
+        "12:10",
+        "12:37",
+        "15:56",
+        "16:26",
     )
 
     ts.entries.append(
@@ -134,7 +148,9 @@ def test_overnight_punch_recovery():
 def test_unpaired_punch():
     ts = make_timesheet(
         date(2026, 11, 16),
-        "08:00", "12:00", "13:30",
+        "08:00",
+        "12:00",
+        "13:30",
     )
 
     result = calculate_timesheet(ts)
@@ -146,7 +162,8 @@ def test_unpaired_punch():
 def test_non_chronological_punches():
     ts = make_timesheet(
         date(2026, 11, 16),
-        "12:00", "08:00",
+        "12:00",
+        "08:00",
     )
 
     result = calculate_timesheet(ts)
@@ -211,7 +228,10 @@ def test_entries_sorted_by_date():
 def test_overtime_before_schedule():
     ts = make_timesheet(
         date(2026, 11, 16),
-        "07:00", "12:00", "13:30", "17:30",
+        "07:00",
+        "12:00",
+        "13:30",
+        "17:30",
     )
 
     result = calculate_timesheet(ts)
@@ -223,7 +243,10 @@ def test_overtime_before_schedule():
 def test_overtime_after_schedule():
     ts = make_timesheet(
         date(2026, 11, 16),
-        "08:00", "12:00", "13:30", "18:30",
+        "08:00",
+        "12:00",
+        "13:30",
+        "18:30",
     )
 
     result = calculate_timesheet(ts)
@@ -296,7 +319,10 @@ def test_saturday_without_automatic_lunch():
 def test_sunday_with_explicit_lunch():
     ts = make_timesheet(
         date(2026, 11, 15),
-        "08:00", "12:00", "13:00", "18:00",
+        "08:00",
+        "12:00",
+        "13:00",
+        "18:00",
     )
 
     result = calculate_timesheet(ts)
@@ -369,13 +395,15 @@ def test_overnight_recovery_requires_consecutive_days():
 def test_all_non_working_statuses():
     ts = make_timesheet(date(2026, 11, 16))
 
-    for index, status in enumerate((
-        DayStatus.ABSENT,
-        DayStatus.COMPENSATED,
-        DayStatus.LEAVE,
-        DayStatus.WEEKLY_REST,
-        DayStatus.HOLIDAY,
-    )):
+    for index, status in enumerate(
+        (
+            DayStatus.ABSENT,
+            DayStatus.COMPENSATED,
+            DayStatus.LEAVE,
+            DayStatus.WEEKLY_REST,
+            DayStatus.HOLIDAY,
+        )
+    ):
         ts.entries.append(
             TimesheetEntry(
                 date=date(2026, 11, 17 + index),
@@ -392,12 +420,12 @@ def test_all_non_working_statuses():
 def test_worked_time_matches_classified_time():
     ts = make_timesheet(
         date(2026, 11, 16),
-        "07:00", "12:00", "13:30", "19:00",
+        "07:00",
+        "12:00",
+        "13:30",
+        "19:00",
     )
 
     result = calculate_timesheet(ts)
 
-    assert result.worked_minutes == (
-        result.regular_minutes
-        + sum(result.overtime_minutes.values())
-    )
+    assert result.worked_minutes == (result.regular_minutes + sum(result.overtime_minutes.values()))

@@ -1,0 +1,37 @@
+[project]
+name = "timesheet"
+version = "0.1.0"
+requires-python = "==3.13.5"
+dependencies = [
+    "artefacts_toolkit==1.4.0",
+    "openpyxl==3.1.5",
+    "pymupdf==2.1",
+]
+
+[dependency-groups]
+dev = [
+    "pyright==1.1.398",
+    "pytest==8.3.5",
+    "pytest-asyncio==0.25.3",
+    "ruff==0.11.2",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

@@ -1,0 +1,18 @@
+{
+  "include": ["src", "tests"],
+
+  "exclude": [
+    ".venv",
+    ".pytest_cache",
+    ".ruff_cache",
+    "web"
+  ],
+
+  "pythonVersion": "3.13",
+  "pythonPlatform": "All",
+
+  "venvPath": ".",
+  "venv": ".venv",
+
+  "typeCheckingMode": "standard"
+}

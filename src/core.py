@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import Iterable
 
 from extraction import DayStatus, Timesheet, TimesheetEntry, WorkSchedule
-
 
 NIGHT_START = time(22, 0)
 NIGHT_END = time(5, 0)
@@ -129,7 +128,7 @@ def to_datetimes(entry: TimesheetEntry) -> list[datetime]:
 
 
 def recover_overnight_punches(days: list[DailyResult]) -> None:
-    for previous, current in zip(days, days[1:]):
+    for previous, current in zip(days, days[1:], strict=False):
         if current.date != previous.date + timedelta(days=1):
             continue
 
@@ -209,7 +208,7 @@ def segments(
     ordered = sorted(boundaries)
     segments: list[tuple[datetime, datetime, bool]] = []
 
-    for start, end in zip(ordered, ordered[1:]):
+    for start, end in zip(ordered, ordered[1:], strict=False):
         is_rest_day = start.weekday() >= 5 or start.date() in holidays
         scheduled = any(
             shift_start <= start and end <= shift_end
@@ -286,7 +285,9 @@ def calculate_timesheet(
             day.issues.append(Issue.NO_PUNCHES_OR_STATUS_PROVIDED)
             continue
 
-        if any(start >= end for start, end in zip(day.punches, day.punches[1:])):
+        zipped = zip(day.punches, day.punches[1:], strict=False)
+
+        if any(start >= end for start, end in zipped):
             day.issues.append(Issue.NON_CHRONOLOGICAL_PUNCHES)
             continue
 
@@ -295,7 +296,7 @@ def calculate_timesheet(
 
         day.work_intervals = [
             WorkInterval(start, end)
-            for start, end in zip(day.punches[::2], day.punches[1::2])
+            for start, end in zip(day.punches[::2], day.punches[1::2], strict=False)
         ]
 
         if not day.work_intervals:

@@ -1,9 +1,8 @@
+import re
 from dataclasses import dataclass
 from datetime import date, time, timedelta
 from enum import Enum
 from pathlib import Path
-import re
-
 
 NAME_HEADER = "Fiscal de Obras e Posturas"
 
@@ -68,7 +67,7 @@ class WorkSchedule:
 
 @dataclass(frozen=True)
 class Timesheet:
-    _id: str
+    id_: str
     who: str
     work_schedule: WorkSchedule
     entries: list[TimesheetEntry]
@@ -109,7 +108,13 @@ def read_pdf_items(pdf_path: Path, page_num: int = 0) -> list[TextItem]:
         page = pdf[page_num]
 
         items = [
-            TextItem(text=word, x=float(x0), y=float(y0), width=float(x1) - float(x0), height=float(y1) - float(y0))
+            TextItem(
+                text=word,
+                x=float(x0),
+                y=float(y0),
+                width=float(x1) - float(x0),
+                height=float(y1) - float(y0),
+            )
             for x0, y0, x1, y1, word, *_ in page.get_text("words")
         ]
 
@@ -157,12 +162,14 @@ def group_lines(items: list[TextItem]) -> list[TextLine]:
 def find_schedule(lines: list[TextLine]) -> WorkSchedule:
     text = " ".join(line.text for line in lines)
 
-    matches = list(re.finditer(
-        r"PMB\s*>\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
-        r"\s*/\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
-        text,
-        flags=re.IGNORECASE,
-    ))
+    matches = list(
+        re.finditer(
+            r"PMB\s*>\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})"
+            r"\s*/\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})",
+            text,
+            flags=re.IGNORECASE,
+        )
+    )
 
     schedules = set(match.groups() for match in matches)
 
@@ -179,7 +186,9 @@ def find_schedule(lines: list[TextLine]) -> WorkSchedule:
 
 def find_table_start(lines: list[TextLine]) -> int:
     for index, line in enumerate(lines):
-        if re.search(r"\bData\b", line.text, re.IGNORECASE) and re.search(r"\bSem\b", line.text, re.IGNORECASE):
+        if re.search(r"\bData\b", line.text, re.IGNORECASE) and re.search(
+            r"\bSem\b", line.text, re.IGNORECASE
+        ):
             return index + 1
 
     raise ValueError("Could not find the timesheet table header.")
@@ -188,7 +197,8 @@ def find_table_start(lines: list[TextLine]) -> int:
 def find_period(lines: list[TextLine], table_start: int) -> tuple[date, date]:
     header = lines[:table_start]
     period_lines = [
-        line for line in header
+        line
+        for line in header
         if re.search(r"Per[ií]odo\s+M[eê]s\s+Compet[eê]ncia\s*:", line.text, re.IGNORECASE)
     ]
 
@@ -196,20 +206,16 @@ def find_period(lines: list[TextLine], table_start: int) -> tuple[date, date]:
         raise ValueError(f"Expected one competency period label, found {len(period_lines)}.")
 
     anchor = period_lines[0]
-    nearby = [
-        line.text for line in header
-        if abs(line.y - anchor.y) <= 14
-    ]
+    nearby = [line.text for line in header if abs(line.y - anchor.y) <= 14]
 
     dates = re.findall(
         r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{4})(?!\d)",
         " ".join(nearby),
     )
 
-    parsed = list(dict.fromkeys(
-        date(int(year), int(month), int(day))
-        for day, month, year in dates
-    ))
+    parsed = list(
+        dict.fromkeys(date(int(year), int(month), int(day)) for day, month, year in dates)
+    )
 
     pairs = [
         (start, end)
@@ -222,6 +228,7 @@ def find_period(lines: list[TextLine], table_start: int) -> tuple[date, date]:
         raise ValueError(f"Expected one 11-to-10 timesheet period, found {len(pairs)}.")
 
     return pairs[0]
+
 
 def find_employee(lines: list[TextLine], table_start: int) -> tuple[str, str]:
     header_lines = [line.text for line in lines[:table_start]]
@@ -257,18 +264,21 @@ def find_employee(lines: list[TextLine], table_start: int) -> tuple[str, str]:
     name_matches = [
         match.group(1).strip()
         for line in header_lines
-        if (match := re.search(
-            r"(?:Nome(?:\s+do\s+servidor)?|Servidor|Colaborador)\s*:\s*"
-            r"([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' .-]{5,70})$",
-            line,
-            re.IGNORECASE,
-        ))
+        if (
+            match := re.search(
+                r"(?:Nome(?:\s+do\s+servidor)?|Servidor|Colaborador)\s*:\s*"
+                r"([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' .-]{5,70})$",
+                line,
+                re.IGNORECASE,
+            )
+        )
     ]
 
     if id_match and len(name_matches) == 1:
         return id_match.group(1), name_matches[0]
 
     raise ValueError("Could not identify a unique employee name and ID.")
+
 
 def extract_timesheet_entries(
     lines: list[TextLine],
@@ -289,13 +299,16 @@ def extract_timesheet_entries(
         if match is None:
             continue
 
-        day_number, weekday_name, code, remainder = match.groups()
+        day_number, weekday_name, _, remainder = match.groups()
         current_date = start_date + timedelta(days=len(entries))
 
         if current_date > end_date:
             raise ValueError("More daily rows than expected in the timesheet period.")
 
-        if int(day_number) != current_date.day or WEEK_DAY_TO_DATE_MAP[weekday_name.upper()] != current_date.weekday():
+        if (
+            int(day_number) != current_date.day
+            or WEEK_DAY_TO_DATE_MAP[weekday_name.upper()] != current_date.weekday()
+        ):
             raise ValueError(f"Unexpected day or weekday in row {len(entries) + 1}: {line.text}")
 
         statuses = [
@@ -334,7 +347,7 @@ def extract_from_items(items: list[TextItem]) -> Timesheet:
     entries = extract_timesheet_entries(lines, table_start, period)
 
     return Timesheet(
-        _id=employee_id,
+        id_=employee_id,
         who=employee_name,
         work_schedule=schedule,
         entries=entries,

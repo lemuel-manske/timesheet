@@ -7,8 +7,9 @@
   "status": "Situação",
   "punch_headers": [
     "Entrada",
-    "Saída almoço",
-    "Retorno almoço",
+    "Saída",
+    "Entrada 1",
+    "Saída 1",
     "Entrada 2",
     "Saída 2",
     "Entrada HE",
@@ -21,7 +22,6 @@
   "issues": "Observações",
   "review_required": "REVISAR MANUALMENTE",
   "total": "TOTAL",
-  "more_than_seven_punches": "Mais de 7 marcações; consultar registros originais",
   "automatic_lunch": "Intervalo automático: {minutes} min",
   "weekdays": ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"],
   "status_labels": {

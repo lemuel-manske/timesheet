@@ -2,20 +2,31 @@ VENV ?= .venv
 
 PYTHON ?= $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
 
-init:
-	python3 -m venv $(VENV)
-	$(VENV)/bin/python -m pip install --upgrade pip
-	$(MAKE) install PYTHON=$(VENV)/bin/python
+
+.PHONY: install test fmt check build-web serve
+
 
 install:
-	$(PYTHON) -m pip install -r requirements.txt
+	uv sync --all-groups
+
 
 test:
-	$(PYTHON) -m pytest -v
+	uv run pytest
+
+
+fmt:
+	uv run ruff format .
+	uv run ruff check --fix .
+
+check:
+	uv run ruff check .
+	uv run pyright
+
 
 build-web:
 	mkdir -p web/python
-	cp extraction.py core.py excel_adapter.py labels.json web/python/
+	cp src/*.py web/python/
+	cp labels.json web/python/
 
 serve: build-web
 	$(PYTHON) -m http.server 8000 --directory web
