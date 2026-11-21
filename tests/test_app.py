@@ -255,6 +255,21 @@ def test_overtime_after_schedule():
     assert result.overtime_minutes[OvertimeRate.FIFTY] == 60
 
 
+def test_overtime_uses_total_worked_time_for_normal_workday():
+    ts = make_timesheet(
+        date(2026, 11, 16),
+        "06:45",
+        "12:01",
+        "13:00",
+        "15:50",
+    )
+
+    result = calculate_timesheet(ts)
+
+    assert result.regular_minutes == 480
+    assert result.overtime_minutes[OvertimeRate.FIFTY] == 6
+
+
 def test_night_overtime_boundary():
     ts = make_timesheet(date(2026, 11, 16), "21:00", "23:00")
 

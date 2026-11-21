@@ -313,7 +313,18 @@ def calculate_timesheet(
         if len(day.punches) == 2 and not overnight_pair:
             automatic_lunch(day, schedule.lunch_minutes)
 
-        classify(day, schedule, holiday_dates, quota_fallback=overnight_pair)
+        is_standard_morning_and_afternoon_day = len(day.punches) == 4
+
+        overtime_starts_after_daily_quota = (
+            overnight_pair or is_standard_morning_and_afternoon_day
+        )
+
+        classify(
+            day,
+            schedule,
+            holiday_dates,
+            quota_fallback=overtime_starts_after_daily_quota,
+        )
 
     return TimesheetResult(days)
 
