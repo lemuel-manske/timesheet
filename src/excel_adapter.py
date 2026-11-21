@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -10,8 +11,18 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.worksheet import Worksheet
 
-from core import OvertimeRate, TimesheetResult
+from core import DailyResult, OvertimeRate, TimesheetResult
 from extraction import DayStatus, Timesheet
+from spreadsheet import (
+    Cell,
+    Column,
+    ColumnRange,
+    FillRule,
+    Sum,
+    Table,
+    Totals,
+    excel_column_number,
+)
 
 TimesheetReport = tuple[Timesheet, TimesheetResult]
 
@@ -25,6 +36,27 @@ DATE_FORMAT = "dd/mm/yyyy"
 PUNCH_FORMAT = "hh:mm"
 
 PUNCH_AMOUNT = 8
+HEADER_ROW = 4
+
+TABLE_COLUMNS = (
+    Column("date"),
+    Column("weekday"),
+    Column("status"),
+    *(Column(f"punch_{number}") for number in range(1, PUNCH_AMOUNT + 1)),
+    Column("worked"),
+    Column("regular"),
+    *(Column(f"overtime_{rate.name.lower()}") for rate in RATES),
+    Column("review"),
+    Column("issues"),
+)
+
+DURATION_COLUMNS = (
+    "worked",
+    "regular",
+    *(f"overtime_{rate.name.lower()}" for rate in RATES),
+)
+
+TOTALS = Totals({column: Sum(column) for column in DURATION_COLUMNS})
 
 NAVY = "183153"
 WHITE = "FFFFFF"
@@ -35,6 +67,66 @@ LIGHT_RED = "FDE9E7"
 LIGHT_GREEN = "E6F4EA"
 GRAY = "F1F5F9"
 RATE_COLORS = ("E8F2FD", "D9EBFD", "FFF0D6", "FCE3DC")
+
+
+@dataclass(frozen=True)
+class DayPresentation:
+    is_holiday: bool
+    is_sunday: bool
+    is_saturday: bool
+    requires_review: bool
+    has_automatic_break: bool
+    overtime_rates: frozenset[OvertimeRate]
+
+
+def is_holiday(presentation: DayPresentation) -> bool:
+    return presentation.is_holiday
+
+
+def is_sunday(presentation: DayPresentation) -> bool:
+    return presentation.is_sunday
+
+
+def is_saturday(presentation: DayPresentation) -> bool:
+    return presentation.is_saturday
+
+
+def requires_review(presentation: DayPresentation) -> bool:
+    return presentation.requires_review
+
+
+def has_automatic_break(presentation: DayPresentation) -> bool:
+    return presentation.has_automatic_break
+
+
+def has_overtime(rate: OvertimeRate):
+    def matches(presentation: DayPresentation) -> bool:
+        return rate in presentation.overtime_rates
+
+    return matches
+
+
+DAY_FILL_RULES = (
+    FillRule("holiday", ColumnRange("date", "issues"), LIGHT_PURPLE, is_holiday),
+    FillRule("sunday", ColumnRange("date", "issues"), LIGHT_ORANGE, is_sunday),
+    FillRule("saturday", ColumnRange("date", "issues"), LIGHT_BLUE, is_saturday),
+    FillRule(
+        "review_required",
+        ColumnRange("review", "issues"),
+        LIGHT_RED,
+        requires_review,
+    ),
+    *(
+        FillRule(
+            f"overtime_{rate.name.lower()}",
+            ColumnRange(f"overtime_{rate.name.lower()}", f"overtime_{rate.name.lower()}"),
+            RATE_COLORS[index],
+            has_overtime(rate),
+        )
+        for index, rate in enumerate(RATES)
+    ),
+    FillRule("automatic_break", ColumnRange("status", "status"), LIGHT_GREEN, has_automatic_break),
+)
 
 
 def duration_value(minutes: int) -> float:
@@ -83,10 +175,51 @@ def write_header(sheet: Worksheet, row: int, headings: list[str]) -> None:
     sheet.row_dimensions[row].height = 34
 
 
-def format_duration_columns(sheet: Worksheet, first: int, last: int, columns: str) -> None:
+def format_duration_columns(
+    sheet: Worksheet,
+    first: int,
+    last: int,
+    columns: Iterable[str],
+) -> None:
     for column in columns:
         for row in range(first, last + 1):
             sheet[f"{column}{row}"].number_format = DURATION_FORMAT
+
+
+def daily_timesheet_table(row_count: int) -> Table:
+    return Table(
+        name="daily_timesheet",
+        anchor=Cell("A", HEADER_ROW),
+        row_count=row_count,
+        columns=TABLE_COLUMNS,
+    )
+
+
+def day_presentation(day: DailyResult, holidays: set[date]) -> DayPresentation:
+    is_holiday_day = day.date in holidays or day.status == DayStatus.HOLIDAY
+
+    return DayPresentation(
+        is_holiday=is_holiday_day,
+        is_sunday=day.week_day == 6 and not is_holiday_day,
+        is_saturday=day.week_day == 5 and not is_holiday_day,
+        requires_review=day.requires_review or len(day.punches) > PUNCH_AMOUNT,
+        has_automatic_break=day.automatic_break is not None,
+        overtime_rates=frozenset(rate for rate, minutes in day.overtime_minutes.items() if minutes),
+    )
+
+
+def applicable_fill_rules(presentation: DayPresentation) -> tuple[FillRule[DayPresentation], ...]:
+    return tuple(rule for rule in DAY_FILL_RULES if rule.matches(presentation))
+
+
+def apply_fill_rules(
+    sheet: Worksheet,
+    table: Table,
+    row: int,
+    presentation: DayPresentation,
+) -> None:
+    for rule in applicable_fill_rules(presentation):
+        fill_range(sheet, rule.target.to_excel(table, row), rule.color)
 
 
 def write_employee(
@@ -96,6 +229,12 @@ def write_employee(
     holidays: set[date],
     labels: dict[str, Any],
 ) -> None:
+    table = daily_timesheet_table(len(result.days))
+    first = table.first_data_row
+    duration_columns = tuple(table.excel_column(column) for column in DURATION_COLUMNS)
+    first_column = table.excel_column("date")
+    last_column = table.excel_column("issues")
+
     sheet["A1"] = labels["employee"]
     sheet["B1"] = ts.who
     sheet["D1"] = labels["id"]
@@ -111,7 +250,7 @@ def write_employee(
 
     sheet["B2"] = schedule_text
 
-    fill_range(sheet, "A1:R1", LIGHT_BLUE)
+    fill_range(sheet, f"A1:{last_column}1", LIGHT_BLUE)
     sheet["A1"].font = Font(bold=True)
     sheet["A2"].font = Font(bold=True)
     sheet.row_dimensions[1].height = 23
@@ -130,11 +269,9 @@ def write_employee(
     ]
 
     if len(labels["punch_headers"]) != PUNCH_AMOUNT or len(labels["overtime_headers"]) != 4:
-        raise ValueError("Expected seven punch headers and four overtime headers")
+        raise ValueError("Expected eight punch headers and four overtime headers")
 
-    write_header(sheet, 4, headings)
-
-    first = 5
+    write_header(sheet, table.anchor.row, headings)
 
     for index, day in enumerate(result.days, start=first):
         displayed = list(day.punches[:PUNCH_AMOUNT])
@@ -146,7 +283,7 @@ def write_employee(
         if day.automatic_break:
             issues.append(labels["automatic_lunch"].format(minutes=day.automatic_break.minutes))
 
-        requires_review = day.requires_review or len(day.punches) > PUNCH_AMOUNT
+        presentation = day_presentation(day, holidays)
 
         values = [
             datetime.combine(day.date, datetime.min.time()),
@@ -156,79 +293,73 @@ def write_employee(
             duration_value(day.worked_minutes),
             duration_value(day.regular_minutes),
             *(duration_value(totals[rate]) for rate in RATES),
-            labels["review_required"] if requires_review else "",
+            labels["review_required"] if presentation.requires_review else "",
             "; ".join(issues),
         ]
 
         for column, value in enumerate(values, start=1):
             sheet.cell(row=index, column=column, value=value)
 
-        sheet[f"A{index}"].number_format = DATE_FORMAT
+        sheet[f"{table.excel_column('date')}{index}"].number_format = DATE_FORMAT
 
-        for column in "DEFGHIJ":
+        for punch_number in range(1, PUNCH_AMOUNT + 1):
+            column = table.excel_column(f"punch_{punch_number}")
             sheet[f"{column}{index}"].number_format = PUNCH_FORMAT
 
-        if day.date in holidays or day.status == DayStatus.HOLIDAY:
-            fill_range(sheet, f"A{index}:R{index}", LIGHT_PURPLE)
-        elif day.week_day == 6:
-            fill_range(sheet, f"A{index}:R{index}", LIGHT_ORANGE)
-        elif day.week_day == 5:
-            fill_range(sheet, f"A{index}:R{index}", LIGHT_BLUE)
-
-        if requires_review:
-            fill_range(sheet, f"Q{index}:R{index}", LIGHT_RED)
-
-        for rate_index, column in enumerate("MNOP"):
-            if totals[RATES[rate_index]]:
-                fill_range(sheet, f"{column}{index}:{column}{index}", RATE_COLORS[rate_index])
-
-        if day.automatic_break:
-            fill_range(sheet, f"C{index}:C{index}", LIGHT_GREEN)
+        apply_fill_rules(sheet, table, index, presentation)
 
     last = first + len(result.days) - 1
 
     if result.days:
-        format_duration_columns(sheet, first, last, "KLMNOP")
+        format_duration_columns(sheet, first, last, duration_columns)
 
     total_row = max(last + 2, 6)
 
-    sheet[f"J{total_row}"] = labels["total"]
-    fill_range(sheet, f"J{total_row}:P{total_row}", GRAY)
+    total_label_column = table.excel_column(f"punch_{PUNCH_AMOUNT}")
+    last_duration_column = duration_columns[-1]
+    sheet[f"{total_label_column}{total_row}"] = labels["total"]
+    fill_range(sheet, f"{total_label_column}{total_row}:{last_duration_column}{total_row}", GRAY)
     sheet.row_dimensions[total_row].height = 24
 
-    for column in "JKLMNOP":
+    for column in (total_label_column, *duration_columns):
         sheet[f"{column}{total_row}"].font = Font(bold=True)
 
-    for column in "KLMNOP":
-        sheet[f"{column}{total_row}"] = (
-            f"=SUM({column}{first}:{column}{last})" if result.days else 0
-        )
+    for column_name, formula in TOTALS.formulas.items():
+        column = table.excel_column(column_name)
+        sheet[f"{column}{total_row}"] = formula.to_excel(table)
 
-    format_duration_columns(sheet, total_row, total_row, "KLMNOP")
+    format_duration_columns(sheet, total_row, total_row, duration_columns)
 
-    sheet.column_dimensions["A"].width = 14
-    sheet.column_dimensions["B"].width = 13
-    sheet.column_dimensions["C"].width = 18
+    sheet.column_dimensions[table.excel_column("date")].width = 14
+    sheet.column_dimensions[table.excel_column("weekday")].width = 13
+    sheet.column_dimensions[table.excel_column("status")].width = 18
 
-    for column in "DEFGHIJ":
+    for punch_number in range(1, PUNCH_AMOUNT + 1):
+        column = table.excel_column(f"punch_{punch_number}")
         sheet.column_dimensions[column].width = 18
 
-    for column in "KLMNOP":
+    for column in duration_columns:
         sheet.column_dimensions[column].width = 14
 
-    sheet.column_dimensions["Q"].width = 19
-    sheet.column_dimensions["R"].width = 48
+    sheet.column_dimensions[table.excel_column("review")].width = 19
+    sheet.column_dimensions[table.excel_column("issues")].width = 48
 
-    for row in sheet.iter_rows(min_row=first, max_row=last, min_col=18, max_col=18):
+    issues_column = excel_column_number(table.excel_column("issues"))
+    for row in sheet.iter_rows(
+        min_row=first,
+        max_row=last,
+        min_col=issues_column,
+        max_col=issues_column,
+    ):
         row[0].alignment = Alignment(vertical="center", wrap_text=True)
 
-    sheet.freeze_panes = "D5"
-    sheet.auto_filter.ref = f"A4:R{max(last, 4)}"
+    sheet.freeze_panes = f"{table.excel_column('punch_1')}{first}"
+    sheet.auto_filter.ref = f"{first_column}{table.anchor.row}:{last_column}{max(last, HEADER_ROW)}"
     sheet.sheet_view.showGridLines = False
     sheet.print_options.horizontalCentered = True
     sheet.page_setup.fitToWidth = 1
     sheet.page_setup.fitToHeight = 0
-    sheet.print_title_rows = "1:4"
+    sheet.print_title_rows = f"1:{HEADER_ROW}"
 
 
 def export_timesheets(

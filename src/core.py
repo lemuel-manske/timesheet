@@ -315,9 +315,7 @@ def calculate_timesheet(
 
         is_standard_morning_and_afternoon_day = len(day.punches) == 4
 
-        overtime_starts_after_daily_quota = (
-            overnight_pair or is_standard_morning_and_afternoon_day
-        )
+        overtime_starts_after_daily_quota = overnight_pair or is_standard_morning_and_afternoon_day
 
         classify(
             day,

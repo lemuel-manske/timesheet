@@ -1,39 +1,84 @@
 <!doctype html>
 <html lang="pt-BR">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Folha de ponto</title>
 
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 640px; margin: 64px auto; padding: 0 20px; color: #1f2937; }
-        h1 { margin-bottom: 8px; }
-        p { line-height: 1.5; }
-        form { display: grid; gap: 16px; margin-top: 28px; }
-        input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; }
-        button { background: #183153; color: white; border: 0; padding: 12px 20px; border-radius: 6px; cursor: pointer; font: inherit; }
-        button:disabled { opacity: .5; cursor: wait; }
-        #status { min-height: 24px; }
-        small { color: #64748b; }
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 640px;
+        margin: 64px auto;
+        padding: 0 20px;
+        color: #1f2937;
+      }
+
+      h1 {
+        margin-bottom: 8px;
+      }
+
+      p {
+        line-height: 1.5;
+      }
+
+      form {
+        display: grid;
+        gap: 16px;
+        margin-top: 28px;
+      }
+
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+      }
+
+      button {
+        background: #183153;
+        color: white;
+        border: 0;
+        padding: 12px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+
+      #status {
+        min-height: 24px;
+      }
+
+      small {
+        color: #64748b;
+      }
     </style>
 
     <script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
 
     <script type="module" src="./app.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Folha de ponto</h1>
     <p>Importe o PDF com os espelhos de ponto para gerar uma planilha Excel.</p>
 
     <form id="timesheet-form">
-        <label for="pdf">Relatório em PDF</label>
-        <input id="pdf" type="file" accept=".pdf,application/pdf" required>
-        <button id="generate" type="submit" disabled>Preparando...</button>
+      <label for="pdf">Relatório em PDF</label>
+      <input id="pdf" type="file" accept=".pdf,application/pdf" required />
+      <button id="generate" type="submit" disabled>Preparando...</button>
     </form>
 
     <p id="status" role="status" aria-live="polite">Carregando sistema...</p>
 
-    <small>O PDF é processado no seu navegador e não é enviado a um servidor. É necessário acesso à internet.</small>
-</body>
+    <small>
+      O PDF é processado no seu navegador e não é enviado a um servidor. É necessário acesso à internet.
+    </small>
+  </body>
 </html>

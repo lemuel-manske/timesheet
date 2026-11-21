@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import spreadsheet
 from core import calculate_timesheet
 from excel_adapter import export_timesheets
 from extraction import TextItem, extract_from_items

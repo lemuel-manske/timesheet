@@ -60,7 +60,14 @@ async function initialize() {
             "import micropip\nawait micropip.install('openpyxl==3.1.5')"
         );
 
-        const names = ["extraction.py", "core.py", "excel_adapter.py", "labels.json", "bridge.py"];
+        const names = [
+            "extraction.py",
+            "core.py",
+            "spreadsheet.py",
+            "excel_adapter.py",
+            "labels.json",
+            "bridge.py",
+        ];
 
         for (const name of names) {
             const url = name === "bridge.py" ? "./bridge.py" : `./python/${name}`;
