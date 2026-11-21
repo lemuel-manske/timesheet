@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any
 
@@ -340,12 +340,12 @@ def calculation_helper_formula(
     previous_worked = "+".join(
         formula_pair_duration(
             (
-                f"{excel_column_name(excel_column_number(start_column) - "
-                f"2 * (pair_index - index))}{row}"
+                f"{excel_column_name(excel_column_number(start_column) - 2 * (pair_index - index))}"
+                f"{row}"
             ),
             (
-                f"{excel_column_name(excel_column_number(start_column) - "
-                f"2 * (pair_index - index) + 1)}{row}"
+                f"{excel_column_name(excel_column_number(start_column) - 2 * (pair_index - index) + 1)}"
+                f"{row}"
             ),
         )
         for index in range(pair_index)
