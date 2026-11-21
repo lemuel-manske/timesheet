@@ -161,16 +161,23 @@ def subtract(source: WorkInterval, break_interval: WorkInterval) -> list[WorkInt
     return parts
 
 
-def automatic_lunch(day: DailyResult, minutes: int) -> None:
-    if len(day.work_intervals) != 1 or minutes <= 0:
+def automatic_lunch(day: DailyResult, schedule: WorkSchedule) -> None:
+    if len(day.work_intervals) != 1 or schedule.lunch_minutes <= 0:
         return
 
     interval = day.work_intervals[0]
-    if interval.minutes < 6 * 60 or interval.minutes <= minutes:
-        return
+    lunch_start = datetime.combine(interval.start.date(), schedule.morning.end_time)
+    lunch_end = datetime.combine(interval.start.date(), schedule.afternoon.start_time)
 
-    break_start = interval.start + timedelta(minutes=(interval.minutes - minutes) // 2)
-    lunch = WorkInterval(break_start, break_start + timedelta(minutes=minutes), inferred=True)
+    if lunch_end <= lunch_start:
+        lunch_end += timedelta(days=1)
+
+    lunch = WorkInterval(lunch_start, lunch_end, inferred=True)
+
+    if interval.minutes < 6 * 60 or not (
+        interval.start <= lunch.start and lunch.end <= interval.end
+    ):
+        return
 
     day.work_intervals = subtract(interval, lunch)
     day.automatic_break = lunch
@@ -311,7 +318,7 @@ def calculate_timesheet(
         )
 
         if len(day.punches) == 2 and not overnight_pair:
-            automatic_lunch(day, schedule.lunch_minutes)
+            automatic_lunch(day, schedule)
 
         is_standard_morning_and_afternoon_day = len(day.punches) == 4
 
