@@ -162,7 +162,7 @@ def subtract(source: WorkInterval, break_interval: WorkInterval) -> list[WorkInt
 
 
 def automatic_lunch(day: DailyResult, schedule: WorkSchedule) -> None:
-    if len(day.work_intervals) != 1:
+    if len(day.work_intervals) != 1 or schedule.lunch_minutes <= 0:
         return
 
     interval = day.work_intervals[0]
