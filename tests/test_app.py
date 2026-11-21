@@ -78,6 +78,33 @@ def test_automatic_weekday_lunch():
     assert not result.days[0].requires_review
 
 
+
+def test_automatic_lunch_uses_employee_schedule_instead_of_midpoint():
+    ts = Timesheet(
+        id_="123",
+        who="Test Employee",
+        work_schedule=WorkSchedule(
+            morning=ShiftSchedule(time(8), time(12)),
+            afternoon=ShiftSchedule(time(13), time(17, 30)),
+        ),
+        entries=[
+            TimesheetEntry(
+                date=date(2026, 11, 16),
+                punches=(time(9, 17), time(20, 31)),
+            )
+        ],
+    )
+
+    result = calculate_timesheet(ts)
+    lunch = result.days[0].automatic_break
+
+    assert lunch is not None
+    assert lunch.start == datetime(2026, 11, 16, 12)
+    assert lunch.end == datetime(2026, 11, 16, 13)
+    assert lunch.minutes == 60
+    assert result.worked_minutes == 614
+
+
 def test_holiday_overtime():
     ts = make_timesheet(
         date(2026, 11, 16),
