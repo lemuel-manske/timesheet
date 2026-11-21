@@ -78,6 +78,28 @@ def test_automatic_weekday_lunch():
     assert not result.days[0].requires_review
 
 
+def test_automatic_lunch_is_not_inferred_for_zero_length_schedule_break():
+    ts = Timesheet(
+        id_="123",
+        who="Test Employee",
+        work_schedule=WorkSchedule(
+            morning=ShiftSchedule(time(8), time(12)),
+            afternoon=ShiftSchedule(time(12), time(17, 30)),
+        ),
+        entries=[
+            TimesheetEntry(
+                date=date(2026, 11, 16),
+                punches=(time(8), time(18)),
+            )
+        ],
+    )
+
+    result = calculate_timesheet(ts)
+
+    assert result.days[0].automatic_break is None
+    assert result.worked_minutes == 600
+
+
 def test_automatic_lunch_uses_employee_schedule_instead_of_midpoint():
     ts = Timesheet(
         id_="123",
