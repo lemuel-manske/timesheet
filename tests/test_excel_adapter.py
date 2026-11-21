@@ -67,7 +67,6 @@ def test_exported_totals_use_formulas_for_all_duration_columns(tmp_path):
     assert workbook["__feriados"].sheet_state == "hidden"
 
 
-
 def test_exported_day_presentation_uses_the_named_table_columns(tmp_path):
     timesheet = make_timesheet()
     day = DailyResult(
