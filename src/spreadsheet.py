@@ -87,12 +87,23 @@ class SumPairedDurations:
             raise ValueError("Paired durations require an even number of columns")
 
         expressions = []
+        chronological = []
+
+        anchor_column = excel_column_number(table.anchor.column)
+
         for index in range(first_index, last_index + 1, 2):
-            start = excel_column_name(excel_column_number(table.anchor.column) + index)
-            end = excel_column_name(excel_column_number(table.anchor.column) + index + 1)
+            start = excel_column_name(anchor_column + index)
+            end = excel_column_name(anchor_column + index + 1)
             expressions.append(f"IF(COUNT({start}{row}:{end}{row})=2,{end}{row}-{start}{row},0)")
 
-        return f"={'+'.join(expressions)}"
+        for index in range(first_index, last_index):
+            start = excel_column_name(anchor_column + index)
+            end = excel_column_name(anchor_column + index + 1)
+            chronological.append(
+                f"IF(COUNT({start}{row}:{end}{row})=2,{start}{row}<={end}{row},TRUE)"
+            )
+
+        return f"=IF(AND({','.join(chronological)}),{'+'.join(expressions)},0)"
 
 
 @dataclass(frozen=True)
