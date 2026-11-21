@@ -225,7 +225,7 @@ def apply_fill_rules(
 
 
 def displayed_punches(day: DailyResult) -> list[datetime]:
-    if not day.automatic_break:
+    if day.automatic_break is None:
         return day.punches
 
     return [
@@ -294,7 +294,7 @@ def write_employee(
         totals = day.overtime_minutes
         issues = [labels["issue_labels"].get(issue.value, issue.value) for issue in day.issues]
 
-        if day.automatic_break:
+        if day.automatic_break is not None:
             issues.append(labels["automatic_lunch"].format(minutes=day.automatic_break.minutes))
 
         presentation = day_presentation(day, holidays)
