@@ -126,6 +126,11 @@ def test_exported_worked_time_is_formula_based_and_includes_automatic_lunch(tmp_
         time(13, 30),
         time(17, 30),
     ]
+
+    assert sheet["E5"].fill.fgColor.rgb.endswith(LIGHT_RED)
+    assert sheet["F5"].fill.fgColor.rgb.endswith(LIGHT_RED)
+    assert not sheet["D5"].fill.fgColor.rgb.endswith(LIGHT_RED)
+    assert not sheet["G5"].fill.fgColor.rgb.endswith(LIGHT_RED)
     assert sheet["L5"].value == (
         "=IF(COUNT(D5:E5)=2,E5-D5,0)+IF(COUNT(F5:G5)=2,G5-F5,0)"
         "+IF(COUNT(H5:I5)=2,I5-H5,0)+IF(COUNT(J5:K5)=2,K5-J5,0)"
