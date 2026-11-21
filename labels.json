@@ -8,12 +8,12 @@
   "punch_headers": [
     "Entrada",
     "Saída",
-    "Entrada 1",
-    "Saída 1",
-    "Entrada 2",
-    "Saída 2",
-    "Entrada HE",
-    "Saída HE"
+    "Entrada",
+    "Saída",
+    "Entrada",
+    "Saída",
+    "Entrada",
+    "Saída"
   ],
   "worked": "Total trabalhado",
   "regular": "Horas normais",
