@@ -75,7 +75,13 @@ def test_paired_duration_formula_sums_completed_punch_pairs():
     )
 
     assert formula.to_excel(table, row=5) == (
-        "=IF(COUNT(A5:B5)=2,B5-A5,0)+IF(COUNT(C5:D5)=2,D5-C5,0)"
+        "=IF(AND("
+        "IF(COUNT(A5:B5)=2,A5<=B5,TRUE),"
+        "IF(COUNT(B5:C5)=2,B5<=C5,TRUE),"
+        "IF(COUNT(C5:D5)=2,C5<=D5,TRUE)"
+        "),"
+        "IF(COUNT(A5:B5)=2,B5-A5,0)+IF(COUNT(C5:D5)=2,D5-C5,0),"
+        "0)"
     )
 
 
