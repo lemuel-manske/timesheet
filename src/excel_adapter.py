@@ -325,6 +325,10 @@ def write_employee(
 
         apply_fill_rules(sheet, table, index, presentation)
 
+        if day.automatic_break is not None:
+            lunch_columns = ColumnRange("punch_2", "punch_3")
+            fill_range(sheet, lunch_columns.to_excel(table, index), LIGHT_RED)
+
     last = first + len(result.days) - 1
 
     if result.days:
