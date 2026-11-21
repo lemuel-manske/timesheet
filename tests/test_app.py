@@ -78,7 +78,6 @@ def test_automatic_weekday_lunch():
     assert not result.days[0].requires_review
 
 
-
 def test_automatic_lunch_uses_employee_schedule_instead_of_midpoint():
     ts = Timesheet(
         id_="123",
